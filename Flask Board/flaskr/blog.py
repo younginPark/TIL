@@ -2,21 +2,87 @@ from flask import (
     Blueprint, flash, g, redirect, render_template, request, url_for
 )
 from werkzeug.exceptions import abort
-
 from flaskr.auth import login_required
 from flaskr.db import get_db
 
 bp = Blueprint('blog', __name__)
 
+prev_page = 0
+next_page = (prev_page + 1) + 3
+page_cnt = 0
+
 @bp.route('/')
 def index():
-    db = get_db()
-    posts = db.execute(
-        'SELECT p.id, title, body, created, author_id, username'
-        ' FROM post p JOIN user u ON p.author_id = u.id'
-        ' ORDER BY created DESC'
-    ).fetchall()
-    return render_template('blog/index.html', posts=posts)
+    global prev_page, next_page
+    page_cnt = pagination()
+    db, conn = get_db()
+    page_num = request.args.get('page_num') # 요구페이지
+    if page_num is not None:
+        page_num = int(page_num)
+        if page_num == -1: # 이전 눌렀을 때
+            if prev_page != 0:
+                next_page = prev_page+1
+                prev_page -= 3
+                page_num = prev_page+1
+            else:
+                page_num = prev_page+1
+                prev_page = 0
+                if prev_page + 3 > page_cnt:
+                    next_page = page_cnt
+                else:
+                    next_page = (prev_page + 1) + 3  
+        elif page_num == -999: # 다음 눌렀을 때
+            if next_page + 3 < page_cnt:
+                prev_page = next_page - 1
+                next_page += 3
+                page_num = prev_page+1
+            elif next_page + 3 >= page_cnt:
+                prev_page = next_page - 1
+                next_page = page_cnt+1
+                page_num = prev_page+1
+
+        db.execute(
+            'SELECT p.id, title, body, created, author_id, username'
+            ' FROM posts p JOIN users u ON p.author_id = u.id'
+            ' ORDER BY created DESC'
+            ' LIMIT 5'
+            ' OFFSET %s',
+            ((page_num-1)*5,)
+        )
+        posts = db.fetchall()
+        page_num = None
+    else:
+        prev_page = 0
+        if prev_page + 3 > page_cnt:
+            next_page = page_cnt
+        else:
+            next_page = (prev_page + 1) + 3
+        db.execute(
+            'SELECT p.id, title, body, created, author_id, username'
+            ' FROM posts p JOIN users u ON p.author_id = u.id'
+            ' ORDER BY created DESC'
+            ' LIMIT 5'
+        )
+        posts = db.fetchall()
+    return render_template('blog/index.html', posts=posts, page_cnt=page_cnt, page_start=prev_page+1, page_last=next_page, page_now=page_num)
+
+def pagination():
+    global page_cnt
+    db, conn = get_db()
+    db.execute(
+        'SELECT COUNT(*) FROM posts;'
+    )
+    post_cnt = db.fetchone() # [8] DictRow
+    post_cnt = int(post_cnt['count'])
+
+    # 총 페이지 수 구하기
+    if post_cnt % 5 == 0:
+        page_cnt = post_cnt // 5
+    else:
+        page_cnt = (post_cnt // 5) + 1
+    
+    return page_cnt
+
 
 @bp.route('/create', methods=('GET', 'POST'))
 @login_required
@@ -32,28 +98,28 @@ def create():
         if error is not None:
             flash(error)
         else:
-            db = get_db()
+            db, conn = get_db()
             db.execute(
-                'INSERT INTO post (title, body, author_id)'
-                ' VALUES (?, ?, ?)',
+                'INSERT INTO posts (title, body, author_id)'
+                ' VALUES (%s, %s, %s)',
                 (title, body, g.user['id'])
             )
-            db.commit()
+            conn.commit()
             return redirect(url_for('blog.index'))
 
     return render_template('blog/create.html')
 
 def get_post(id, check_author=True):
-    post = get_db().execute(
+    db, conn = get_db()
+    db.execute(
         'SELECT p.id, title, body, created, author_id, username'
-        ' FROM post p JOIN user u ON p.author_id = u.id'
-        ' WHERE p.id = ?',
+        ' FROM posts p JOIN users u ON p.author_id = u.id'
+        ' WHERE p.id = %s',
         (id,)
-    ).fetchone()
-
+    )
+    post = db.fetchone()
     if post is None:
         abort(404, "Post id {0} doesn't exist.".format(id))
-
     if check_author and post['author_id'] != g.user['id']:
         abort(403)
 
@@ -75,13 +141,13 @@ def update(id):
         if error is not None:
             flash(error)
         else:
-            db = get_db()
+            db, conn = get_db()
             db.execute(
-                'UPDATE post SET title = ?, body = ?'
-                ' WHERE id = ?',
+                'UPDATE posts SET title = %s, body = %s'
+                'WHERE id = %s',
                 (title, body, id)
             )
-            db.commit()
+            conn.commit()
             return redirect(url_for('blog.index'))
 
     return render_template('blog/update.html', post=post)
@@ -90,7 +156,7 @@ def update(id):
 @login_required
 def delete(id):
     get_post(id)
-    db = get_db()
-    db.execute('DELETE FROM post WHERE id = ?', (id,))
-    db.commit()
+    db, conn = get_db()
+    db.execute('DELETE FROM posts WHERE id = %s', (id,))
+    conn.commit()
     return redirect(url_for('blog.index'))
