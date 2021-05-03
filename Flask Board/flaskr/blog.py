@@ -20,23 +20,23 @@ def index():
     if page_num is not None:
         page_num = int(page_num)
         if page_num == -1: # 이전 눌렀을 때
-            if prev_page != 0:
+            if prev_page > 0:
                 next_page = prev_page+1
                 prev_page -= 3
                 page_num = prev_page+1
-            else:
-                page_num = prev_page+1
-                prev_page = 0
-                if prev_page + 3 > page_cnt:
-                    next_page = page_cnt
-                else:
-                    next_page = (prev_page + 1) + 3  
+            # else:
+            #     page_num = prev_page+1
+            #     prev_page = 0
+            #     if prev_page + 3 > page_cnt:
+            #         next_page = page_cnt
+            #     else:
+            #         next_page = (prev_page + 1) + 3  
         elif page_num == -999: # 다음 눌렀을 때
-            if next_page + 3 < page_cnt:
+            if next_page + 3 <= page_cnt:
                 prev_page = next_page - 1
                 next_page += 3
                 page_num = prev_page+1
-            elif next_page + 3 >= page_cnt:
+            elif next_page + 3 > page_cnt:
                 prev_page = next_page - 1
                 next_page = page_cnt+1
                 page_num = prev_page+1
