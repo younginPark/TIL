@@ -20,23 +20,16 @@ def index():
     if page_num is not None:
         page_num = int(page_num)
         if page_num == -1: # 이전 눌렀을 때
-            if prev_page > 0:
+            if prev_page > 0: # 0보다 큰 상태이므로 이전 페이지 빼 줘야 함
                 next_page = prev_page+1
                 prev_page -= 3
                 page_num = prev_page+1
-            # else:
-            #     page_num = prev_page+1
-            #     prev_page = 0
-            #     if prev_page + 3 > page_cnt:
-            #         next_page = page_cnt
-            #     else:
-            #         next_page = (prev_page + 1) + 3  
         elif page_num == -999: # 다음 눌렀을 때
-            if next_page + 3 <= page_cnt:
+            if next_page + 3 <= page_cnt: # 다음 페이지 +3 해도 마지막 페이지 수보다 같거나 작을 때
                 prev_page = next_page - 1
                 next_page += 3
                 page_num = prev_page+1
-            elif next_page + 3 > page_cnt:
+            elif next_page + 3 > page_cnt: # 다음 페이지 +3 하면 마지막 페이지 수보다 작을 때
                 prev_page = next_page - 1
                 next_page = page_cnt+1
                 page_num = prev_page+1
@@ -160,3 +153,14 @@ def delete(id):
     db.execute('DELETE FROM posts WHERE id = %s', (id,))
     conn.commit()
     return redirect(url_for('blog.index'))
+
+@bp.route('/search', methods=('POST',))
+def search():
+    search_text = request.form.get('search_text')
+    db, conn = get_db()
+    query = "SELECT p.id, title, body, created, author_id, username\
+            FROM posts p JOIN users u ON p.author_id = u.id\
+            WHERE title LIKE %s OR body LIKE %s"
+    db.execute(query, ('%' + search_text + '%', '%' + search_text + '%'),)
+    posts = db.fetchall()
+    return render_template('blog/search.html', posts=posts, search_text=search_text)
