@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "euQ54b4FxRBznG9c7vrhybrzdFh6+kAd3rZU9t0jPpN4CwEOEc96boOMkcee0Sp5uIdIVgonapxEFBwJE89olw==",
+  "success": true,
+  "projectFilePath": "/Users/parkyoungin/Documents/GitHub/TIL_2023_SecondHalf/ChattingSystem_Redis_SignalR/SignalRWebpack/SignalRWebpack.csproj",
+  "expectedPackageFiles": [
+    "/Users/parkyoungin/.nuget/packages/microsoft.typescript.msbuild/5.1.5/microsoft.typescript.msbuild.5.1.5.nupkg.sha512"
+  ],
+  "logs": []
+}
